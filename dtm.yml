@@ -1,0 +1,8 @@
+MicroService:
+  Driver: etcdv3
+  Endpoints:
+    - etcd1:2379
+
+GrpcPort: 36790
+HttpPort: 36789
+LogLevel: info

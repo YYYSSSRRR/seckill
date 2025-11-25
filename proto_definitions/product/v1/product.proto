@@ -1,0 +1,51 @@
+syntax="proto3";
+package product.v1;
+
+option go_package="proto_definitions/product/v1;v1";
+
+service ProductService{
+  //新增商品
+  rpc AddProduct(AddProductRequest) returns (ProductResponse);
+  //扣减库存
+  rpc DeductStock(DeductStockRequest) returns (ProductResponse);
+  //增加库存
+  rpc AddStock(DeductStockRequest) returns (ProductResponse);
+  //查询商品信息
+  rpc GetProductInfo(QueryRequest) returns (ProductInfoResponse);
+  //修改商品价格
+  rpc EditProductPrice(EditRequest) returns (ProductResponse);
+}
+
+message AddProductRequest{
+  string name=1;
+  string describe=2;
+  int64 price=3;
+  int32 stock=4;
+}
+
+message ProductResponse{
+  bool success=1;
+}
+
+message DeductStockRequest{
+  int64 id=1;
+  int32 num=2;
+}
+
+message QueryRequest{
+  int64 id=1;
+}
+
+message ProductInfoResponse{
+  int64 id=1;
+  string name=2;
+  string describe=3;
+  int64 price=4;
+  int32 stock=5;
+}
+
+message EditRequest{
+  int64 id=1;
+  int64 price=2;
+}
+

@@ -1,0 +1,19 @@
+syntax="proto3";
+package seckill.v1;
+option go_package="proto_definitions/seckill/v1;v1";
+
+service SeckillService{
+  rpc Seckill(SeckillRequest) returns (SeckillResponse);
+}
+
+message SeckillRequest{
+  int64 userID=1;
+  int64 productID=2;
+}
+
+message SeckillResponse{
+  int64 orderID=1;
+  int64 userID=2;
+  int64 productID=3;
+  int64 price=4;
+}

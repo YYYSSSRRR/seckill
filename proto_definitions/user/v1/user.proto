@@ -1,0 +1,44 @@
+syntax = "proto3";
+package user.v1;
+
+option go_package="proto_definitions/user/v1;v1";
+
+message LoginRequest{
+  string email=1;
+  string password=2;
+}
+
+message LoginResponse{
+  string token=1;
+}
+
+message UserInfoRequest{
+  int64 id=1;
+  int64 money=2;
+}
+
+message UserInfoResponse{
+  int64 money=1;
+}
+
+message UserChargeResponse{
+  bool success=1;
+}
+
+//定义了用户层面的接口
+service UserService {
+  //login:有账号的登录，没账号的注册，获取token进行鉴权
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  //查询用户余额
+  rpc GetUserById(UserInfoRequest) returns (UserInfoResponse);
+
+  //用户购买商品，扣钱
+  rpc CostMoney(UserInfoRequest) returns (UserChargeResponse);
+
+  //用户充值
+  rpc RechargeMoney(UserInfoRequest) returns (UserChargeResponse);
+}
+
+
+

@@ -1,0 +1,25 @@
+syntax="proto3";
+
+package api.v1;
+option go_package="gateway/api/gateway/v1;v1";
+
+import "google/api/annotations.proto";
+import "user/v1/user.proto";
+import "product/v1/product.proto";
+
+service GatewayService{
+  rpc Login(user.v1.LoginRequest) returns (user.v1.LoginResponse){
+    option (google.api.http)={
+      post:"/user/login"
+      body:"*"
+    };
+  }
+
+  rpc GetProductInfo(product.v1.QueryRequest) returns (product.v1.ProductInfoResponse){
+    option (google.api.http)={
+      get:"/product/info/{id}"
+    };
+  }
+
+
+}

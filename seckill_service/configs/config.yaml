@@ -1,0 +1,28 @@
+server:
+  http:
+    addr: 0.0.0.0:8000
+    timeout: 1s
+  grpc:
+    addr: 0.0.0.0:9000
+    timeout: 1s
+data:
+  database:
+    driver: mysql
+    source: root:12345@tcp(127.0.0.1:3306)/seckill?parseTime=True&loc=Local
+  redis:
+    addr: 127.0.0.1:6379
+    read_timeout: 0.2s
+    write_timeout: 0.2s
+    password: "12345"
+    db: 0
+registry:
+  etcd:
+    endpoints:
+      - "http://127.0.0.1:2379"
+    timeout: "5s"
+    discovery:
+      product: "discovery:///product_service"
+      user: "discovery:///user_service"
+
+
+

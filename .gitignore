@@ -1,0 +1,50 @@
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work.sum
+
+# Build artifacts
+/bin/
+/dist/
+/build/
+/tmp/
+
+# Dependencies
+/vendor/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
+
+# Config (uncomment if needed)
+ config.yaml
+ *.yml
+
+# Test coverage
+coverage.txt
+coverage.html
+*.coverprofile
