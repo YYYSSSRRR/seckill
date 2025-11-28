@@ -11,6 +11,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	v11 "proto_definitions/product/v1"
+	v12 "proto_definitions/seckill/v1"
 	v1 "proto_definitions/user/v1"
 	reflect "reflect"
 	unsafe "unsafe"
@@ -27,24 +28,29 @@ var File_gateway_v1_gateway_proto protoreflect.FileDescriptor
 
 const file_gateway_v1_gateway_proto_rawDesc = "" +
 	"\n" +
-	"\x18gateway/v1/gateway.proto\x12\x06api.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x12user/v1/user.proto\x1a\x18product/v1/product.proto2\xc9\x01\n" +
+	"\x18gateway/v1/gateway.proto\x12\x06api.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x12user/v1/user.proto\x1a\x18product/v1/product.proto\x1a\x18seckill/v1/seckill.proto2\xa2\x02\n" +
 	"\x0eGatewayService\x12N\n" +
 	"\x05Login\x12\x15.user.v1.LoginRequest\x1a\x16.user.v1.LoginResponse\"\x16\x82\xd3\xe4\x93\x02\x10:\x01*\"\v/user/login\x12g\n" +
-	"\x0eGetProductInfo\x12\x18.product.v1.QueryRequest\x1a\x1f.product.v1.ProductInfoResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/product/info/{id}B\x1bZ\x19gateway/api/gateway/v1;v1b\x06proto3"
+	"\x0eGetProductInfo\x12\x18.product.v1.QueryRequest\x1a\x1f.product.v1.ProductInfoResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/product/info/{id}\x12W\n" +
+	"\aSeckill\x12\x1a.seckill.v1.SeckillRequest\x1a\x1b.seckill.v1.SeckillResponse\"\x13\x82\xd3\xe4\x93\x02\r:\x01*\"\b/seckillB\x1bZ\x19gateway/api/gateway/v1;v1b\x06proto3"
 
 var file_gateway_v1_gateway_proto_goTypes = []any{
 	(*v1.LoginRequest)(nil),         // 0: user.v1.LoginRequest
 	(*v11.QueryRequest)(nil),        // 1: product.v1.QueryRequest
-	(*v1.LoginResponse)(nil),        // 2: user.v1.LoginResponse
-	(*v11.ProductInfoResponse)(nil), // 3: product.v1.ProductInfoResponse
+	(*v12.SeckillRequest)(nil),      // 2: seckill.v1.SeckillRequest
+	(*v1.LoginResponse)(nil),        // 3: user.v1.LoginResponse
+	(*v11.ProductInfoResponse)(nil), // 4: product.v1.ProductInfoResponse
+	(*v12.SeckillResponse)(nil),     // 5: seckill.v1.SeckillResponse
 }
 var file_gateway_v1_gateway_proto_depIdxs = []int32{
 	0, // 0: api.v1.GatewayService.Login:input_type -> user.v1.LoginRequest
 	1, // 1: api.v1.GatewayService.GetProductInfo:input_type -> product.v1.QueryRequest
-	2, // 2: api.v1.GatewayService.Login:output_type -> user.v1.LoginResponse
-	3, // 3: api.v1.GatewayService.GetProductInfo:output_type -> product.v1.ProductInfoResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	2, // 2: api.v1.GatewayService.Seckill:input_type -> seckill.v1.SeckillRequest
+	3, // 3: api.v1.GatewayService.Login:output_type -> user.v1.LoginResponse
+	4, // 4: api.v1.GatewayService.GetProductInfo:output_type -> product.v1.ProductInfoResponse
+	5, // 5: api.v1.GatewayService.Seckill:output_type -> seckill.v1.SeckillResponse
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name

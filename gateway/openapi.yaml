@@ -24,6 +24,24 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/product.v1.ProductInfoResponse'
+    /seckill:
+        post:
+            tags:
+                - GatewayService
+            operationId: GatewayService_Seckill
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/seckill.v1.SeckillRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/seckill.v1.SeckillResponse'
     /user/login:
         post:
             tags:
@@ -58,6 +76,24 @@ components:
                 stock:
                     type: integer
                     format: int32
+        seckill.v1.SeckillRequest:
+            type: object
+            properties:
+                userID:
+                    type: string
+                productID:
+                    type: string
+        seckill.v1.SeckillResponse:
+            type: object
+            properties:
+                orderID:
+                    type: string
+                userID:
+                    type: string
+                productID:
+                    type: string
+                price:
+                    type: string
         user.v1.LoginRequest:
             type: object
             properties:

@@ -12,6 +12,7 @@ import (
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
 	v11 "proto_definitions/product/v1"
+	v12 "proto_definitions/seckill/v1"
 	v1 "proto_definitions/user/v1"
 )
 
@@ -23,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	GatewayService_Login_FullMethodName          = "/api.v1.GatewayService/Login"
 	GatewayService_GetProductInfo_FullMethodName = "/api.v1.GatewayService/GetProductInfo"
+	GatewayService_Seckill_FullMethodName        = "/api.v1.GatewayService/Seckill"
 )
 
 // GatewayServiceClient is the client API for GatewayService service.
@@ -31,6 +33,7 @@ const (
 type GatewayServiceClient interface {
 	Login(ctx context.Context, in *v1.LoginRequest, opts ...grpc.CallOption) (*v1.LoginResponse, error)
 	GetProductInfo(ctx context.Context, in *v11.QueryRequest, opts ...grpc.CallOption) (*v11.ProductInfoResponse, error)
+	Seckill(ctx context.Context, in *v12.SeckillRequest, opts ...grpc.CallOption) (*v12.SeckillResponse, error)
 }
 
 type gatewayServiceClient struct {
@@ -61,12 +64,23 @@ func (c *gatewayServiceClient) GetProductInfo(ctx context.Context, in *v11.Query
 	return out, nil
 }
 
+func (c *gatewayServiceClient) Seckill(ctx context.Context, in *v12.SeckillRequest, opts ...grpc.CallOption) (*v12.SeckillResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(v12.SeckillResponse)
+	err := c.cc.Invoke(ctx, GatewayService_Seckill_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GatewayServiceServer is the server API for GatewayService service.
 // All implementations must embed UnimplementedGatewayServiceServer
 // for forward compatibility.
 type GatewayServiceServer interface {
 	Login(context.Context, *v1.LoginRequest) (*v1.LoginResponse, error)
 	GetProductInfo(context.Context, *v11.QueryRequest) (*v11.ProductInfoResponse, error)
+	Seckill(context.Context, *v12.SeckillRequest) (*v12.SeckillResponse, error)
 	mustEmbedUnimplementedGatewayServiceServer()
 }
 
@@ -82,6 +96,9 @@ func (UnimplementedGatewayServiceServer) Login(context.Context, *v1.LoginRequest
 }
 func (UnimplementedGatewayServiceServer) GetProductInfo(context.Context, *v11.QueryRequest) (*v11.ProductInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProductInfo not implemented")
+}
+func (UnimplementedGatewayServiceServer) Seckill(context.Context, *v12.SeckillRequest) (*v12.SeckillResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Seckill not implemented")
 }
 func (UnimplementedGatewayServiceServer) mustEmbedUnimplementedGatewayServiceServer() {}
 func (UnimplementedGatewayServiceServer) testEmbeddedByValue()                        {}
@@ -140,6 +157,24 @@ func _GatewayService_GetProductInfo_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GatewayService_Seckill_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(v12.SeckillRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServiceServer).Seckill(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GatewayService_Seckill_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServiceServer).Seckill(ctx, req.(*v12.SeckillRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GatewayService_ServiceDesc is the grpc.ServiceDesc for GatewayService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -154,6 +189,10 @@ var GatewayService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProductInfo",
 			Handler:    _GatewayService_GetProductInfo_Handler,
+		},
+		{
+			MethodName: "Seckill",
+			Handler:    _GatewayService_Seckill_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

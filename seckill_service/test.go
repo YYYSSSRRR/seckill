@@ -11,7 +11,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
-	// 导入你生成的 gRPC 代码包
 	pb "proto_definitions/seckill/v1"
 )
 
@@ -39,7 +38,7 @@ func main() {
 
 	// 3. 准备请求数据
 	request := &pb.SeckillRequest{
-		UserID:    1, // 示例用户 ID
+		UserID:    2, // 示例用户 ID
 		ProductID: 1, // 示例商品 ID
 	}
 

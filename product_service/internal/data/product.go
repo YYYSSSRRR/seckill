@@ -1,8 +1,8 @@
 package data
 
 import (
+	"common/lock"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"product_service/internal/biz"
@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
@@ -19,10 +19,11 @@ import (
 type productRepo struct {
 	data        *Data
 	redisClient *RedisClient
+	log         log.Logger
 }
 
-func NewProductRepo(data *Data, redisClient *RedisClient) biz.ProductRepo {
-	return &productRepo{data: data, redisClient: redisClient}
+func NewProductRepo(data *Data, redisClient *RedisClient, log log.Logger) biz.ProductRepo {
+	return &productRepo{data: data, redisClient: redisClient, log: log}
 }
 
 func (p *productRepo) AddProduct(product *biz.Product) error {
@@ -31,15 +32,25 @@ func (p *productRepo) AddProduct(product *biz.Product) error {
 		return result.Error
 	}
 
-	//热点key先加到缓存中
+	//热点key先加到缓存中，用hash结构存
 	cacheKey := utils.PRODUCT_CACHE + strconv.FormatInt(product.ID, 10)
-	productJson, err := json.Marshal(product)
-	if err != nil {
-		return err
-	}
-	//先设置普通过期
-	p.redisClient.client.Set(context.Background(), cacheKey, string(productJson), time.Hour*3)
 
+	ctx := context.Background()
+	//先设置普通过期
+	//p.redisClient.client.Set(context.Background(), cacheKey, string(productJson), time.Hour*3)
+	res := p.redisClient.client.HSet(
+		ctx,
+		cacheKey,
+		"id", product.ID,
+		"name", product.Name,
+		"description", product.Describe,
+		"price", product.Price,
+		"stock", product.Stock,
+	)
+	p.redisClient.client.Expire(ctx, cacheKey, 3*time.Hour)
+	if res.Err() != nil {
+		return res.Err()
+	}
 	return nil
 }
 
@@ -49,85 +60,93 @@ func (p *productRepo) GetProductInfo(id int64) (*biz.Product, error) {
 	product := &biz.Product{}
 
 	//先查redis
-	result := p.redisClient.client.Get(ctx, utils.PRODUCT_CACHE+strconv.FormatInt(id, 10))
-
+	result := p.redisClient.client.HGetAll(ctx, utils.PRODUCT_CACHE+strconv.FormatInt(id, 10))
+	//val是一个map
 	val, err := result.Result()
+	if err != nil {
+		return nil, err
+	}
 
 	//查询到了数据，直接返回
-	if val != "" {
-		if val == "Not Found" {
-			return nil, errors.New("没查询到数据")
-		}
-		err := json.Unmarshal([]byte(val), product)
+	if len(val) != 0 {
+		product.ID, err = strconv.ParseInt(val["id"], 10, 64)
+		product.Name = val["name"]
+		product.Describe = val["description"]
+
 		if err != nil {
 			return nil, err
 		}
+		product.Price = decimal.RequireFromString(val["price"])
+		stockNum, err := strconv.ParseInt(val["stock"], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		product.Stock = int(stockNum)
+
 		return product, nil
 	}
 
-	if err != redis.Nil {
-		return nil, err
-	}
-	//没查询到缓存，要加锁查询数据库
-
-	//分布式锁，先加key到redis中，且每一把锁都要有不同的uuid
-	lockUUID := uuid.New()
-	ok := p.redisClient.client.SetNX(ctx, utils.LOCK_KEY+strconv.FormatInt(id, 10), lockUUID, time.Second*10)
+	//没查询到缓存，要加分布式锁查询数据库
+	//分布式锁，先加key到redis中，值是uuid（确保每把锁的值不同用来区分不同的锁）
+	lockUUID := uuid.New().String()
+	lockKey := utils.LOCK_KEY + strconv.FormatInt(id, 10)
+	ok, err := lock.Lock(ctx, lockKey, lockUUID, time.Second*10, p.redisClient.client)
 
 	//如果获取锁成功，先判断缓存中是否有数据
-	if ok.Val() {
-		result, err := p.redisClient.client.Get(ctx, utils.PRODUCT_CACHE+strconv.FormatInt(id, 10)).Result()
+	if ok {
+		//获取锁就要释放锁！！！不能因为获取到缓存中的数据就直接return忘记释放锁
+		defer func() {
+			_, err = lock.Unlock(ctx, lockKey, lockUUID, p.redisClient.client)
+			if err != nil {
+				err := p.log.Log(log.LevelError, "释放锁错误")
+				if err != nil {
+					return
+				}
+			}
+		}()
+		result, err := p.redisClient.client.HGetAll(ctx, utils.PRODUCT_CACHE+strconv.FormatInt(id, 10)).Result()
 
-		if err != nil && err != redis.Nil {
+		if err != nil {
 			return nil, err
 		}
 
 		//查询到了缓存中的数据：直接返回
-		if result != "" {
-			if result == "Not Found" {
-				return nil, errors.New("没查询到数据")
-			}
-			err := json.Unmarshal([]byte(val), product)
+		if len(result) != 0 {
+			product.ID, err = strconv.ParseInt(val["id"], 10, 64)
+			product.Name = val["name"]
+			product.Describe = val["description"]
+			fmt.Printf("商品价格：%v", val["price"])
+
+			product.Price = decimal.RequireFromString(val["price"])
+			stockNum, err := strconv.ParseInt(val["stock"], 10, 64)
 			if err != nil {
 				return nil, err
 			}
+			product.Stock = int(stockNum)
+
 			return product, nil
 		}
 
 		//没查询到缓存中的数据：查询数据库
 		result1 := p.data.gormDB.First(product, "id=?", id)
+		fmt.Printf("查询数据库：%v", result1)
 		if result1.Error == gorm.ErrRecordNotFound {
-			//数据库中也没有，存空缓存，防止缓存穿透
-			p.redisClient.client.Set(ctx, utils.PRODUCT_CACHE+strconv.FormatInt(id, 10), "Not Found", time.Second*3)
+			//TODO数据库中也没有，存空缓存，防止缓存穿透
+			//p.redisClient.client.Set(ctx, utils.PRODUCT_CACHE+strconv.FormatInt(id, 10), "Not Found", time.Second*3)
 			return nil, errors.New("没查询到数据")
 		}
 
 		//查询到数据了：存到数据库中
-		resultJson, err := json.Marshal(product)
-		if err != nil {
-			return nil, err
-		}
-		p.redisClient.client.Set(ctx, utils.PRODUCT_CACHE+strconv.FormatInt(id, 10), string(resultJson), time.Hour*3)
-
-		//查询完了，释放锁(先判断是不是自己的锁，然后再释放)
-		scriptContent, err := utils.LoadLuaScript("/Users/ysr/Documents/seckill_microservice/product_service/internal/lua/unlock.lua")
-		if err != nil {
-			return nil, err
-		}
-		lockValue, err := p.redisClient.client.Get(ctx, utils.LOCK_KEY+strconv.FormatInt(id, 10)).Result()
-		if err != nil {
-			return nil, err
-		}
-		result2, err := p.redisClient.client.Eval(ctx, scriptContent, []string{lockValue}, lockUUID.String()).Result()
-		if err != nil {
-			return nil, err
-		}
-		if result2 == 1 {
-			fmt.Printf("释放锁成功")
-		}
-		if result2 == 0 {
-			fmt.Printf("释放锁失败")
-		}
+		cacheKey := utils.PRODUCT_CACHE + strconv.FormatInt(product.ID, 10)
+		p.redisClient.client.HSet(
+			context.Background(),
+			cacheKey,
+			"id", product.ID,
+			"name", product.Name,
+			"description", product.Describe,
+			"price", product.Price.String(),
+			"stock", product.Stock,
+		)
 
 	} else {
 		time.Sleep(100 * time.Millisecond)

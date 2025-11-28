@@ -6,6 +6,7 @@ option go_package="gateway/api/gateway/v1;v1";
 import "google/api/annotations.proto";
 import "user/v1/user.proto";
 import "product/v1/product.proto";
+import "seckill/v1/seckill.proto";
 
 service GatewayService{
   rpc Login(user.v1.LoginRequest) returns (user.v1.LoginResponse){
@@ -18,6 +19,13 @@ service GatewayService{
   rpc GetProductInfo(product.v1.QueryRequest) returns (product.v1.ProductInfoResponse){
     option (google.api.http)={
       get:"/product/info/{id}"
+    };
+  }
+
+  rpc Seckill(seckill.v1.SeckillRequest) returns (seckill.v1.SeckillResponse){
+    option (google.api.http)={
+      post:"/seckill"
+      body:"*"
     };
   }
 

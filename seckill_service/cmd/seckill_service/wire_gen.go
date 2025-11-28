@@ -7,7 +7,6 @@
 package main
 
 import (
-	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 	"seckill_service/internal/biz"
 	"seckill_service/internal/conf"
@@ -23,7 +22,7 @@ import (
 // Injectors from wire.go:
 
 // wireApp init kratos application.
-func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger, registry *conf.Registry) (*kratos.App, func(), error) {
+func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger, registry *conf.Registry) (*App, func(), error) {
 	discovery, err := server.NewEtcdDiscovery(registry)
 	if err != nil {
 		return nil, nil, err
@@ -42,7 +41,11 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger, re
 	if err != nil {
 		return nil, nil, err
 	}
-	dataData, cleanup, err := data.NewData(db, logger)
+	client, err := data.NewRedisClient(confData)
+	if err != nil {
+		return nil, nil, err
+	}
+	dataData, cleanup, err := data.NewData(db, client)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -55,7 +58,13 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger, re
 		cleanup()
 		return nil, nil, err
 	}
-	app := newApp(logger, grpcServer, registrar)
+	myConsumerGroupHandler := data.NewMyConsumerGroupHandler(dataData, productRepo)
+	kafkaConsumer, err := data.NewKafkaConsumer(myConsumerGroupHandler)
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	app := newApp(logger, grpcServer, registrar, kafkaConsumer)
 	return app, func() {
 		cleanup()
 	}, nil

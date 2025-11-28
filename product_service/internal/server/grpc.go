@@ -12,6 +12,7 @@ import (
 
 // NewGRPCServer new a gRPC server.
 func NewGRPCServer(c *conf.Server, greeter *service.ProductService, logger log.Logger) *grpc.Server {
+	//是在这里注册到etcd中的
 	var opts = []grpc.ServerOption{
 		grpc.Middleware(
 			recovery.Recovery(),

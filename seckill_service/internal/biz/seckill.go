@@ -8,8 +8,6 @@ import (
 	v1user "proto_definitions/user/v1"
 	"seckill_service/internal/conf"
 
-	"github.com/dtm-labs/client/dtmgrpc"
-	"github.com/lithammer/shortuuid/v4"
 	"github.com/shopspring/decimal"
 )
 
@@ -59,6 +57,7 @@ func NewSeckillUsecase(user UserRepo, product ProductRepo, seckill SeckillRepo, 
 	return &seckillUsecase{User: user, Product: product, Sec: seckill, conf: conf}
 }
 
+// 秒杀：先查询用户是否有购买资格（一人多单），再扣减库存，如果扣减成功就创建订单
 func (su *seckillUsecase) Seckill(ctx context.Context, in *v1sec.SeckillRequest) (*v1sec.SeckillResponse, error) {
 	productID := in.ProductID
 	userID := in.UserID
@@ -71,25 +70,6 @@ func (su *seckillUsecase) Seckill(ctx context.Context, in *v1sec.SeckillRequest)
 	}
 	fmt.Printf("商品信息：%v", productInfo.Price)
 	priceCents := productInfo.Price
-
-	//开启saga事务，扣库存、减客户的钱，阻塞等待事务成功，最后创建订单
-	dtmServer := "localhost:36790"
-	saga := dtmgrpc.NewSagaGrpc(dtmServer, shortuuid.New()).
-		//扣商品库存
-		Add("10.130.97.157:9001/product.v1.ProductService/DeductStock",
-			"10.130.97.157:9001/product.v1.ProductService/AddStock",
-			&v1pro.DeductStockRequest{Id: productID, Num: 1},
-		).
-		//减客户的钱
-		Add("10.130.97.157:9002/user.v1.UserService/CostMoney",
-			"10.130.97.157:9002/user.v1.UserService/RechargeMoney",
-			&v1user.UserInfoRequest{Id: userID, Money: priceCents},
-		)
-	saga.WaitResult = true
-	err3 := saga.Submit()
-	if err3 != nil {
-		return nil, err3
-	}
 
 	price := decimal.NewFromInt(priceCents).Div(decimal.NewFromInt(int64(100)))
 	order := &Order{ProductID: productID, UserID: userID, Price: price}

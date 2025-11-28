@@ -37,7 +37,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger, re
 		cleanup()
 		return nil, nil, err
 	}
-	productRepo := data.NewProductRepo(dataData, redisClient)
+	productRepo := data.NewProductRepo(dataData, redisClient, logger)
 	productUsecase := biz.NewProductUsecase(productRepo)
 	productService := service.NewProductService(productUsecase)
 	grpcServer := server.NewGRPCServer(confServer, productService, logger)

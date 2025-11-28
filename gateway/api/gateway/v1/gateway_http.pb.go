@@ -11,6 +11,7 @@ import (
 	http "github.com/go-kratos/kratos/v2/transport/http"
 	binding "github.com/go-kratos/kratos/v2/transport/http/binding"
 	v11 "proto_definitions/product/v1"
+	v12 "proto_definitions/seckill/v1"
 	v1 "proto_definitions/user/v1"
 )
 
@@ -23,16 +24,19 @@ const _ = http.SupportPackageIsVersion1
 
 const OperationGatewayServiceGetProductInfo = "/api.v1.GatewayService/GetProductInfo"
 const OperationGatewayServiceLogin = "/api.v1.GatewayService/Login"
+const OperationGatewayServiceSeckill = "/api.v1.GatewayService/Seckill"
 
 type GatewayServiceHTTPServer interface {
 	GetProductInfo(context.Context, *v11.QueryRequest) (*v11.ProductInfoResponse, error)
 	Login(context.Context, *v1.LoginRequest) (*v1.LoginResponse, error)
+	Seckill(context.Context, *v12.SeckillRequest) (*v12.SeckillResponse, error)
 }
 
 func RegisterGatewayServiceHTTPServer(s *http.Server, srv GatewayServiceHTTPServer) {
 	r := s.Route("/")
 	r.POST("/user/login", _GatewayService_Login0_HTTP_Handler(srv))
 	r.GET("/product/info/{id}", _GatewayService_GetProductInfo0_HTTP_Handler(srv))
+	r.POST("/seckill", _GatewayService_Seckill0_HTTP_Handler(srv))
 }
 
 func _GatewayService_Login0_HTTP_Handler(srv GatewayServiceHTTPServer) func(ctx http.Context) error {
@@ -79,9 +83,32 @@ func _GatewayService_GetProductInfo0_HTTP_Handler(srv GatewayServiceHTTPServer) 
 	}
 }
 
+func _GatewayService_Seckill0_HTTP_Handler(srv GatewayServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in v12.SeckillRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationGatewayServiceSeckill)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.Seckill(ctx, req.(*v12.SeckillRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*v12.SeckillResponse)
+		return ctx.Result(200, reply)
+	}
+}
+
 type GatewayServiceHTTPClient interface {
 	GetProductInfo(ctx context.Context, req *v11.QueryRequest, opts ...http.CallOption) (rsp *v11.ProductInfoResponse, err error)
 	Login(ctx context.Context, req *v1.LoginRequest, opts ...http.CallOption) (rsp *v1.LoginResponse, err error)
+	Seckill(ctx context.Context, req *v12.SeckillRequest, opts ...http.CallOption) (rsp *v12.SeckillResponse, err error)
 }
 
 type GatewayServiceHTTPClientImpl struct {
@@ -110,6 +137,19 @@ func (c *GatewayServiceHTTPClientImpl) Login(ctx context.Context, in *v1.LoginRe
 	pattern := "/user/login"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationGatewayServiceLogin))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *GatewayServiceHTTPClientImpl) Seckill(ctx context.Context, in *v12.SeckillRequest, opts ...http.CallOption) (*v12.SeckillResponse, error) {
+	var out v12.SeckillResponse
+	pattern := "/seckill"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationGatewayServiceSeckill))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
 	if err != nil {

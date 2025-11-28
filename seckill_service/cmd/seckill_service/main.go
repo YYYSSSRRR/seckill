@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
-
 	"seckill_service/internal/conf"
+	"seckill_service/internal/data"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
@@ -13,7 +14,6 @@ import (
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
-
 	_ "go.uber.org/automaxprocs"
 )
 
@@ -33,8 +33,13 @@ func init() {
 	flag.StringVar(&flagconf, "conf", "./configs", "config path, eg: -conf config.yaml")
 }
 
-func newApp(logger log.Logger, gs *grpc.Server, r registry.Registrar) *kratos.App {
-	return kratos.New(
+type App struct {
+	consumer *data.KafkaConsumer
+	app      *kratos.App
+}
+
+func newApp(logger log.Logger, gs *grpc.Server, r registry.Registrar, consumer *data.KafkaConsumer) *App {
+	kratosApp := kratos.New(
 		kratos.ID(id),
 		kratos.Name(Name),
 		kratos.Version(Version),
@@ -45,6 +50,7 @@ func newApp(logger log.Logger, gs *grpc.Server, r registry.Registrar) *kratos.Ap
 		),
 		kratos.Registrar(r),
 	)
+	return &App{app: kratosApp, consumer: consumer}
 }
 
 func main() {
@@ -80,8 +86,19 @@ func main() {
 	}
 	defer cleanup()
 
+	//开启一个协程消费创建订单的消息
+	kafkaConsumer := app.consumer
+	go func() {
+		log.Info("Kafka consumer started")
+		err := kafkaConsumer.ConsumeAndHandler(context.Background(), []string{"create_order_topic"})
+		if err != nil {
+			panic(err)
+		}
+	}()
+
 	// start and wait for stop signal
-	if err := app.Run(); err != nil {
+	kratosApp := app.app
+	if err := kratosApp.Run(); err != nil {
 		panic(err)
 	}
 }

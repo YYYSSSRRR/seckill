@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"seckill_service/internal/conf"
 
-	"github.com/go-kratos/kratos/v2/log"
+	"log"
+
 	"github.com/go-redis/redis/v8"
 	"github.com/google/wire"
 	"gorm.io/driver/mysql"
@@ -13,20 +14,31 @@ import (
 )
 
 // ProviderSet is data providers.
-var ProviderSet = wire.NewSet(NewData, NewGormDB, NewRedisClient, NewProductRepo, NewProductServiceClient, NewUserRepo, NewUserServiceClient, NewSeckillRepo)
+var ProviderSet = wire.NewSet(NewData, NewGormDB,
+	NewRedisClient, NewProductRepo,
+	NewProductServiceClient, NewUserRepo,
+	NewUserServiceClient, NewSeckillRepo,
+	NewKafkaConsumer, NewMyConsumerGroupHandler,
+)
 
 // Data .
 type Data struct {
 	gormDB      *gorm.DB
 	redisClient *redis.Client
+	producer    *KafkaProducer
 }
 
 // NewData .
-func NewData(gormdb *gorm.DB, logger log.Logger) (*Data, func(), error) {
+func NewData(gormdb *gorm.DB, client *redis.Client) (*Data, func(), error) {
 	cleanup := func() {
-		log.NewHelper(logger).Info("closing the data resources")
+		log.Println("closing the data resources")
 	}
-	return &Data{gormDB: gormdb}, cleanup, nil
+	kafkaProducer, err := NewKafkaProducer([]string{"localhost:9094"})
+	if err != nil {
+		return nil, cleanup, err
+	}
+
+	return &Data{gormDB: gormdb, redisClient: client, producer: kafkaProducer}, cleanup, nil
 }
 
 func NewGormDB(data *conf.Data) (*gorm.DB, error) {

@@ -3,7 +3,7 @@ server:
     addr: 0.0.0.0:8000
     timeout: 1s
   grpc:
-    addr: 0.0.0.0:9000
+    addr: 0.0.0.0:9005
     timeout: 1s
 data:
   database:
@@ -21,4 +21,5 @@ registry:
     discovery:
       product: "discovery:///product_service"
       user: "discovery:///user_service"
+      seckill: "discovery:///seckill_service"
 
