@@ -9,6 +9,7 @@ import (
 	"seckill_service/internal/biz"
 	"seckill_service/internal/conf"
 	"seckill_service/internal/data"
+	"seckill_service/internal/job"
 	"seckill_service/internal/server"
 	"seckill_service/internal/service"
 
@@ -18,5 +19,5 @@ import (
 
 // wireApp init kratos application.
 func wireApp(*conf.Server, *conf.Data, log.Logger, *conf.Registry) (*App, func(), error) {
-	panic(wire.Build(server.ProviderSet, data.ProviderSet, biz.ProviderSet, service.ProviderSet, newApp))
+	panic(wire.Build(server.ProviderSet, data.ProviderSet, biz.ProviderSet, service.ProviderSet, job.ProviderSet, newApp))
 }

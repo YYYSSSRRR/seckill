@@ -11,6 +11,7 @@ import (
 	"seckill_service/internal/biz"
 	"seckill_service/internal/conf"
 	"seckill_service/internal/data"
+	"seckill_service/internal/job"
 	"seckill_service/internal/server"
 	"seckill_service/internal/service"
 )
@@ -49,7 +50,7 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger, re
 	if err != nil {
 		return nil, nil, err
 	}
-	seckillRepo := data.NewSeckillRepo(dataData)
+	seckillRepo := data.NewSeckillRepo(dataData, productRepo)
 	seckillUsecase := biz.NewSeckillUsecase(userRepo, productRepo, seckillRepo, registry)
 	seckillService := service.NewSeckillService(seckillUsecase)
 	grpcServer := server.NewGRPCServer(confServer, seckillService, logger)
@@ -58,13 +59,19 @@ func wireApp(confServer *conf.Server, confData *conf.Data, logger log.Logger, re
 		cleanup()
 		return nil, nil, err
 	}
-	myConsumerGroupHandler := data.NewMyConsumerGroupHandler(dataData, productRepo)
+	myConsumerGroupHandler := data.NewMyConsumerGroupHandler(dataData, productRepo, seckillRepo)
 	kafkaConsumer, err := data.NewKafkaConsumer(myConsumerGroupHandler)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	app := newApp(logger, grpcServer, registrar, kafkaConsumer)
+	rabbitmq, err := data.NewRabbitmq()
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	cancelJob := job.NewCancelJob(rabbitmq, seckillRepo)
+	app := newApp(logger, grpcServer, registrar, kafkaConsumer, cancelJob)
 	return app, func() {
 		cleanup()
 	}, nil

@@ -3,7 +3,19 @@
 -- KEYS[1]:商品的key
 -- KEYS[2]:存商品秒杀用户列表的key
 -- ARGV[1]:用户id
-local stock=redis.call('hget',KEYS[1],"stock")
-redis.call('HSET',KEYS[1],"stock",stock+1)
-redis.call('SREM',KEYS[2],ARGV[1])
-return 1
+
+local stock = redis.call('HGET', KEYS[1], "stock")
+
+if (not stock) then
+    return -1           -- 说明商品不存在
+end
+
+local stockNum = tonumber(stock)
+if (not stockNum) then
+    return -2           -- 非数字
+end
+
+redis.call('HSET', KEYS[1], "stock", stockNum + 1)
+redis.call('SREM', KEYS[2], ARGV[1])
+
+return stockNum + 1

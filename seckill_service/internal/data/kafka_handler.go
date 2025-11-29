@@ -17,12 +17,14 @@ import (
 type MyConsumerGroupHandler struct {
 	data          *Data
 	productClient biz.ProductRepo
+	seckill       biz.SeckillRepo
 }
 
-func NewMyConsumerGroupHandler(data *Data, productClient biz.ProductRepo) *MyConsumerGroupHandler {
+func NewMyConsumerGroupHandler(data *Data, productClient biz.ProductRepo, seckill biz.SeckillRepo) *MyConsumerGroupHandler {
 	return &MyConsumerGroupHandler{
 		data:          data,
 		productClient: productClient,
+		seckill:       seckill,
 	}
 }
 
@@ -63,6 +65,12 @@ func (h *MyConsumerGroupHandler) ConsumeClaim(sess sarama.ConsumerGroupSession, 
 
 		//消费完成，标记消息消费完成
 		sess.MarkMessage(msg, "")
+
+		fmt.Printf("发送时的orderID：%d", order.OrderID)
+		err = h.seckill.SendDelayMessage(order.OrderID)
+		if err != nil {
+			fmt.Printf("发送延时消息成功")
+		}
 	}
 	return nil
 }

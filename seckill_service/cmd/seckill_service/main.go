@@ -6,6 +6,7 @@ import (
 	"os"
 	"seckill_service/internal/conf"
 	"seckill_service/internal/data"
+	"seckill_service/internal/job"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
@@ -34,11 +35,12 @@ func init() {
 }
 
 type App struct {
-	consumer *data.KafkaConsumer
-	app      *kratos.App
+	kafkaConsumer *data.KafkaConsumer
+	app           *kratos.App
+	cancelJob     *job.CancelJob
 }
 
-func newApp(logger log.Logger, gs *grpc.Server, r registry.Registrar, consumer *data.KafkaConsumer) *App {
+func newApp(logger log.Logger, gs *grpc.Server, r registry.Registrar, consumer *data.KafkaConsumer, job *job.CancelJob) *App {
 	kratosApp := kratos.New(
 		kratos.ID(id),
 		kratos.Name(Name),
@@ -50,7 +52,7 @@ func newApp(logger log.Logger, gs *grpc.Server, r registry.Registrar, consumer *
 		),
 		kratos.Registrar(r),
 	)
-	return &App{app: kratosApp, consumer: consumer}
+	return &App{app: kratosApp, kafkaConsumer: consumer, cancelJob: job}
 }
 
 func main() {
@@ -87,7 +89,8 @@ func main() {
 	defer cleanup()
 
 	//开启一个协程消费创建订单的消息
-	kafkaConsumer := app.consumer
+	//TODO 放到后台任务
+	kafkaConsumer := app.kafkaConsumer
 	go func() {
 		log.Info("Kafka consumer started")
 		err := kafkaConsumer.ConsumeAndHandler(context.Background(), []string{"create_order_topic"})
@@ -96,6 +99,11 @@ func main() {
 		}
 	}()
 
+	//开启一个协程消费死信队列中的消息，检测到消息就查询订单状态
+	err = app.cancelJob.Start()
+	if err != nil {
+		return
+	}
 	// start and wait for stop signal
 	kratosApp := app.app
 	if err := kratosApp.Run(); err != nil {

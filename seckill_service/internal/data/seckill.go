@@ -5,17 +5,42 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
+	v1 "proto_definitions/product/v1"
 	"seckill_service/internal/biz"
 	"seckill_service/internal/utils"
 	"strconv"
+
+	"github.com/streadway/amqp"
 )
 
-type seckillRepo struct {
-	data *Data
+type OrderInfo struct {
+	ProductID int64 `gorm:"column:product_id"`
+	UserID    int64 `gorm:"column:user_id"`
 }
 
-func NewSeckillRepo(data *Data) biz.SeckillRepo {
-	return &seckillRepo{data: data}
+type seckillRepo struct {
+	data    *Data
+	product biz.ProductRepo
+}
+
+func NewSeckillRepo(data *Data, product biz.ProductRepo) biz.SeckillRepo {
+	return &seckillRepo{data: data, product: product}
+}
+
+func (sr *seckillRepo) SendDelayMessage(orderID int64) error {
+	//发送订单，到期后进入死信队列检查订单状态，所以需要传orderID
+	err := sr.data.mq.Ch.Publish(OrderDelayExchange, "order.delay", false, false,
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(strconv.FormatInt(orderID, 10)),
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (sr *seckillRepo) CreateOrder(order *biz.Order) (bool, error) {
@@ -42,7 +67,7 @@ func (sr *seckillRepo) CreateOrder(order *biz.Order) (bool, error) {
 		return false, err
 	}
 	decreaseKey := "product:" + strconv.FormatInt(order.ProductID, 10)
-	res1 := sr.data.redisClient.Eval(ctx, scriptContent1, []string{decreaseKey, lockKey}, strconv.FormatInt(order.UserID, 10))
+	res1 := sr.data.redisClient.Eval(ctx, scriptContent1, []string{decreaseKey, lockKey}, "2")
 	if res1.Err() != nil {
 		return false, res1.Err()
 	}
@@ -60,7 +85,52 @@ func (sr *seckillRepo) CreateOrder(order *biz.Order) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	//发送一个订单支付消息到延时队列中
+	//fmt.Printf("发送时的orderID：%d", order.OrderID)
+	//err = sr.SendDelayMessage(order.OrderID)
+	//if err != nil {
+	//	return false, err
+	//}
+
+	//此时应该返回给前端一个支付的链接，前端跳转第三方支付网站
+	//mock支付服务就是自己手动把订单状态修改为已完成
+
 	return true, nil
+}
+
+func (sr *seckillRepo) CancelOrder(orderID int64) error {
+	ctx := context.Background()
+	res := sr.data.gormDB.Table("orders").Where("id=? and pay_status=?", orderID, 0).Update("pay_status", -1)
+	if res.Error != nil {
+		return res.Error
+	}
+	log.Printf("影响行数：%d", res.RowsAffected)
+	scriptRollBack, err := common.LoadLuaScript("/Users/ysr/Documents/seckill_microservice/seckill_service/internal/lua/rollbackStock.lua")
+	if err != nil {
+		return err
+	}
+	orderInfo := OrderInfo{}
+	err = sr.data.gormDB.Table("orders").Where("id=?", orderID).Select("product_id", "user_id").Find(&orderInfo).Error
+	if err != nil {
+		return err
+	}
+	productInfoKey := "product:" + strconv.FormatInt(orderInfo.ProductID, 10)
+	userSetKey := utils.USER_SECKILL_LOCK + strconv.FormatInt(orderInfo.ProductID, 10)
+	//从redis中删
+	res1 := sr.data.redisClient.Eval(ctx, scriptRollBack, []string{productInfoKey, userSetKey}, strconv.FormatInt(orderInfo.UserID, 10))
+	if res1.Err() != nil {
+		return res1.Err()
+	}
+	log.Printf("stock的值：%s", res1.Val())
+
+	//恢复数据库中的数据
+	request := &v1.DeductStockRequest{Id: orderInfo.ProductID, Num: 1}
+	_, err = sr.product.AddStock(ctx, request)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (sr *seckillRepo) PayOrder(orderID int64) (bool, error) {

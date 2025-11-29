@@ -38,7 +38,7 @@ func main() {
 
 	// 3. 准备请求数据
 	request := &pb.SeckillRequest{
-		UserID:    2, // 示例用户 ID
+		UserID:    1, // 示例用户 ID
 		ProductID: 1, // 示例商品 ID
 	}
 

@@ -29,6 +29,20 @@ services:
       - '9093:9093'
     volumes:
       - kafka_data:/var/lib/kafka/data
+  rabbitmq:
+    restart: always
+    image: 'rabbitmq:management'
+    container_name: rabbitmq
+    hostname: rabbit
+    ports:
+      - "5672:5672" # RabbitMQ 主端口
+      - "15672:15672" #Web管理界面
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
 volumes:
   kafka_data:
     driver: local
+  rabbitmq_data:

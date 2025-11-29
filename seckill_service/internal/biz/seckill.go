@@ -13,10 +13,11 @@ import (
 
 // Order 领域模型
 type Order struct {
-	OrderID   int64 `gorm:"column:id;primaryKey"`
+	OrderID   int64 `gorm:"column:id;primaryKey;autoIncrement"`
 	ProductID int64
 	UserID    int64
 	Price     decimal.Decimal
+	//0:pending 1:success -1:canceled
 	PayStatus int8
 }
 
@@ -24,6 +25,8 @@ type SeckillRepo interface {
 	CreateOrder(order *Order) (bool, error)
 	PayOrder(orderID int64) (bool, error)
 	QueryOrder(orderID int64) (*Order, error)
+	CancelOrder(orderID int64) error
+	SendDelayMessage(orderID int64) error
 }
 
 // 定义仓储接口，在data层实现方法（rpc调用user_service的服务）

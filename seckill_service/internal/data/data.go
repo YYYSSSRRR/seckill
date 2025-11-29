@@ -11,6 +11,7 @@ import (
 	"github.com/google/wire"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // ProviderSet is data providers.
@@ -19,6 +20,7 @@ var ProviderSet = wire.NewSet(NewData, NewGormDB,
 	NewProductServiceClient, NewUserRepo,
 	NewUserServiceClient, NewSeckillRepo,
 	NewKafkaConsumer, NewMyConsumerGroupHandler,
+	NewRabbitmq,
 )
 
 // Data .
@@ -26,6 +28,7 @@ type Data struct {
 	gormDB      *gorm.DB
 	redisClient *redis.Client
 	producer    *KafkaProducer
+	mq          *Rabbitmq
 }
 
 // NewData .
@@ -33,17 +36,25 @@ func NewData(gormdb *gorm.DB, client *redis.Client) (*Data, func(), error) {
 	cleanup := func() {
 		log.Println("closing the data resources")
 	}
+	//TODO 把这两个地址放到conf配置文件中
 	kafkaProducer, err := NewKafkaProducer([]string{"localhost:9094"})
 	if err != nil {
 		return nil, cleanup, err
 	}
 
-	return &Data{gormDB: gormdb, redisClient: client, producer: kafkaProducer}, cleanup, nil
+	mq, err := NewRabbitmq()
+	if err != nil {
+		return nil, cleanup, err
+	}
+
+	return &Data{gormDB: gormdb, redisClient: client, producer: kafkaProducer, mq: mq}, cleanup, nil
 }
 
 func NewGormDB(data *conf.Data) (*gorm.DB, error) {
 	dsn := data.Database.Source
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
 	if err != nil {
 		return nil, err
 	}

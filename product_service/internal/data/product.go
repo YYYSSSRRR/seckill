@@ -167,7 +167,7 @@ func (p *productRepo) DeductStock(id int64, num int) (bool, error) {
 }
 
 func (p *productRepo) AddStock(id int64, num int) error {
-	result := p.data.gormDB.Exec(`update products set stock=stock+? where id=? and stock-?>=0`, num, id, num)
+	result := p.data.gormDB.Exec(`update products set stock=stock+? where id=?`, num, id, num)
 	if result.Error != nil {
 		return result.Error
 	}
